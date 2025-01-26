@@ -1,21 +1,19 @@
 package pkg2.sınıf3.proje;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.lang.Exception;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class GraphMatrix {
 
-    int edges[][]; // can be anything, but int vertices handy
-    // can be double if there are double weigths
+    int[][] edges;
     int numV;
-    int numE;
-    int dist[];
-    int[] distTo;
-    int[] edgeTo;
     boolean[] marked;
+    int[] edgeTo;
+    int[] distTo;
     ArrayList<String> path = new ArrayList<>();
+    List<String> allPaths = new ArrayList<>();
+
 
     public GraphMatrix(int V) {
         this.numV = V;
@@ -23,11 +21,6 @@ public class GraphMatrix {
         marked = new boolean[V];
         edgeTo = new int[V];
         distTo = new int[V];
-        for (int i = 0; i < V; i++) {
-            for (int j = 0; j < V; j++) {
-                edges[i][j] = 0;
-            }
-        }
     }
 
     public void addEdge(int from, int to, int weight) {
@@ -47,88 +40,114 @@ public class GraphMatrix {
         return degree;
     }
 
-    public Integer[] neighborsArray(int hashCodeOfSource) {
-        Integer[] array = new Integer[edges[hashCodeOfSource].length];
-        int index = 0;
-
+    public List<Integer> neighbors(int hashCodeOfSource) {
+        List<Integer> neighbors = new ArrayList<>();
         for (int i = 0; i < numV; i++) {
             if (edges[hashCodeOfSource][i] > 0) {
-                array[index++] = i;
+                neighbors.add(i);
             }
         }
-        return array;
+        return neighbors;
     }
 
-    public void BFSfromTo(String name1, String name2, HashTable hashTable) throws IOException, NullPointerException {//bfs yapıp her adımında print yapması lazım 
+    public void resetSearch() {
+        marked = new boolean[numV];
+        edgeTo = new int[numV];
+        distTo = new int[numV];
+        path = new ArrayList<>();
+        allPaths = new ArrayList<>();
+    }
 
+
+    public void BFSfromTo(String name1, String name2, HashTable hashTable) {
+        resetSearch(); // Reset before starting
         int hashCodeOfName1 = hashTable.hash(name1);
         int hashCodeOfName2 = hashTable.hash(name2);
-        marked[hashCodeOfName1] = true;
-        Integer[] a = (Integer[]) neighborsArray(hashCodeOfName1);
 
-        if (a.length == 0) {
+        if (hashTable.get(name1) == null || hashTable.get(name2) == null) {
+            System.out.println("Invalid Input");
             return;
         }
 
-        LinkedList<Integer> q = new LinkedList<>();
-        System.out.print(name1 + " -> ");
-        q.addLast(hashCodeOfName1);
-        while (!q.isEmpty()) {
-            hashCodeOfName1 = q.removeFirst();
-            a = (Integer[]) neighborsArray(hashCodeOfName1);
-            for (int i = 0; i < a.length; i++) {
-                int w = a[i];
-                if (!marked[w] && a[i] != null) {
-                    System.out.print((String) hashTable.table[w] + " -> ");
-                    q.addLast(w);
-                    marked[w] = true;
-                    edgeTo[w] = hashCodeOfName1;
-                    distTo[w] = distTo[hashCodeOfName1] + 1;
-                    if (hashCodeOfName2 == w) {
-                        System.out.print((String) hashTable.table[w]);
 
-                    }
-                    break;
-                }
-                if (hashCodeOfName2 == w) {
-                    System.out.print((String) hashTable.table[w]);
-                    break;
-                }
+        LinkedList<Integer> queue = new LinkedList<>();
+        queue.add(hashCodeOfName1);
+        marked[hashCodeOfName1] = true;
+        System.out.print("BFS Path: ");
 
+        while (!queue.isEmpty()) {
+            int current = queue.poll();
+
+            System.out.print((String) hashTable.table[current] + " -> ");
+
+            if (current == hashCodeOfName2) {
+                System.out.print("Reached target\n");
+                return;
             }
+
+            List<Integer> neighbors = neighbors(current);
+            //Sort neighbors by edge weight
+            neighbors.sort(Comparator.comparingInt(neighbor -> edges[current][neighbor]));
+            for (int neighbor : neighbors) {
+                if (!marked[neighbor]) {
+                    queue.add(neighbor);
+                    marked[neighbor] = true;
+                   }
+            }
+
         }
+        System.out.println("No path found from " + name1 + " to " + name2);
 
     }
 
-    public void DFSfromTo(String name1, String name2, HashTable hashTable) {// dfs yapıp her adımında printlemesi lazım
-        path.add(name1 + " -> ");
-        if (name1.equals(name2)) {
-            path.add(name2);
-        }
+    public void DFSfromTo(String name1, String name2, HashTable hashTable) {
 
+        resetSearch();
         int hashCodeOfName1 = hashTable.hash(name1);
         int hashCodeOfName2 = hashTable.hash(name2);
-
-        this.marked[hashCodeOfName1] = true;
-        for (int i = 0; i < this.edges[hashCodeOfName1].length; i++) {
-            if (this.edges[hashCodeOfName1][i] > 0 && (!this.marked[i])) {
-                if (i == hashCodeOfName2) {
-                    path.add(name2);
-                    break;
-                }
-                if (name1 != name2) {
-                    name1 = (String) hashTable.table[i];
-                    DFSfromTo(name1, name2, hashTable);
-                }
-                break;
-            }
+         if (hashTable.get(name1) == null || hashTable.get(name2) == null) {
+            System.out.println("Invalid Input");
+            return;
         }
+
+        dfsRecursive(hashCodeOfName1, hashCodeOfName2, hashTable);
+        if(path.size()>0) {
+            System.out.print("DFS Path: ");
+            for (int i = 0; i < path.size() - 1; i++) {
+                System.out.print(path.get(i));
+            }
+            System.out.print(path.get(path.size() - 1) + "\n");
+        } else{
+            System.out.println("DFS Path: No path found from "+name1+" to "+name2);
+        }
+
+
     }
 
-    public int minDistance(int dist[], Boolean sptSet[]) {
+      private void dfsRecursive(int current, int target, HashTable hashTable) {
+        marked[current] = true;
+        path.add((String) hashTable.table[current] + " -> ");
+        if (current == target) {
+              path.set(path.size() - 1,(String) hashTable.table[current] );
+            return;
+        }
+
+        List<Integer> neighbors = neighbors(current);
+        for (int neighbor : neighbors) {
+            if (!marked[neighbor]) {
+                dfsRecursive(neighbor, target, hashTable);
+                 if (path.contains((String) hashTable.table[target] )) return;
+            }
+
+        }
+         path.remove(path.size() - 1);
+
+    }
+
+    public int minDistance(int[] dist, Boolean[] sptSet) {
         int min = Integer.MAX_VALUE, min_index = -1;
         for (int v = 0; v < numV; v++) {
-            if (sptSet[v] == false && dist[v] <= min) {
+            if (!sptSet[v] && dist[v] <= min) {
                 min = dist[v];
                 min_index = v;
             }
@@ -136,9 +155,10 @@ public class GraphMatrix {
         return min_index;
     }
 
-    public int[] dijkstra(int graph[][], int src) {
-        dist = new int[numV];
-        Boolean sptSet[] = new Boolean[numV];
+
+    public int[] dijkstra(int src) {
+        int[] dist = new int[numV];
+        Boolean[] sptSet = new Boolean[numV];
         for (int i = 0; i < numV; i++) {
             dist[i] = Integer.MAX_VALUE;
             sptSet[i] = false;
@@ -146,15 +166,126 @@ public class GraphMatrix {
         dist[src] = 0;
         for (int count = 0; count < numV - 1; count++) {
             int u = minDistance(dist, sptSet);
+            if (u == -1) break; // no more reachable nodes
             sptSet[u] = true;
             for (int v = 0; v < numV; v++) {
-                if (!sptSet[v] && graph[u][v] != 0 && dist[u] != Integer.MAX_VALUE && dist[u] + graph[u][v] < dist[v]) {
-                    dist[v] = dist[u] + graph[u][v];
+                if (!sptSet[v] && edges[u][v] != 0 && dist[u] != Integer.MAX_VALUE && dist[u] + edges[u][v] < dist[v]) {
+                    dist[v] = dist[u] + edges[u][v];
                 }
             }
         }
-       return dist;
+        return dist;
     }
+
+
+    public void AllPathsShorterThanEqualTo(int pathLen, int VertexNo, String name1, HashTable hashTable) {
+        resetSearch(); // Reset before each search
+        int hashCodeOfName1 = hashTable.hash(name1);
+         if (hashTable.get(name1) == null) {
+            System.out.println("Invalid Input");
+            return;
+        }
+        allPaths = new ArrayList<>();
+        findPaths(hashCodeOfName1, name1, pathLen, VertexNo, hashTable, new ArrayList<>());
+        System.out.println("All Paths with length <= " + pathLen + " and at least " + VertexNo + " vertices from " + name1 + ":");
+        if(allPaths.isEmpty()){
+            System.out.println("No such paths found!");
+        } else {
+            for (String path : allPaths) {
+                System.out.println(path);
+            }
+        }
+
+    }
+
+    private void findPaths(int currentVertex,String currentPath, int pathLen, int VertexNo, HashTable hashTable, List<String> current) {
+        marked[currentVertex] = true;
+        current.add((String) hashTable.table[currentVertex]);
+        if (current.size() > 1 && current.size() >= VertexNo ) {
+             allPaths.add(String.join(" -> ", current));
+        }
+
+
+        if (current.size() <= pathLen) {
+            List<Integer> neighbors = neighbors(currentVertex);
+            for (int neighbor : neighbors) {
+                if (!marked[neighbor]) {
+                    findPaths(neighbor,currentPath, pathLen, VertexNo, hashTable,current );
+                }
+            }
+        }
+       current.remove(current.size() -1);
+       marked[currentVertex] = false;
+
+    }
+
+
+    public int NoOfPathsFromTo(String name1, String name2, HashTable hashTable) {
+        resetSearch();
+        int hashCodeOfName1 = hashTable.hash(name1);
+        int hashCodeOfName2 = hashTable.hash(name2);
+
+        if (hashTable.get(name1) == null || hashTable.get(name2) == null) {
+            System.out.println("Invalid Input");
+            return -1;
+        }
+        return countAllPaths(hashCodeOfName1, hashCodeOfName2, hashTable, new boolean[numV]);
+    }
+
+   private int countAllPaths(int current, int destination, HashTable hashTable, boolean[] visited) {
+       if (current == destination) {
+           return 1;
+       }
+       visited[current] = true;
+       int pathCount = 0;
+       List<Integer> neighbors = neighbors(current);
+       for (int neighbor : neighbors) {
+           if (!visited[neighbor]) {
+               pathCount += countAllPaths(neighbor, destination, hashTable, visited);
+           }
+       }
+       visited[current] = false;
+       return pathCount;
+   }
+
+
+
+    public int NoOfVerticesInComponent(String name1, HashTable hashTable) {
+
+       resetSearch();
+        int hashCodeOfName1 = hashTable.hash(name1);
+
+         if (hashTable.get(name1) == null) {
+            System.out.println("Invalid Input");
+            return -1;
+        }
+       
+        return countVerticesInComponent(hashCodeOfName1);
+
+
+    }
+       private int countVerticesInComponent(int startVertex) {
+           Queue<Integer> queue = new LinkedList<>();
+        queue.add(startVertex);
+        marked[startVertex] = true;
+        int count = 0;
+
+        while (!queue.isEmpty()) {
+            int v = queue.poll();
+            count++;
+
+            List<Integer> neighbors = neighbors(v);
+            for(int neighbor : neighbors) {
+                  if (!marked[neighbor]) {
+                    queue.add(neighbor);
+                    marked[neighbor] = true;
+                }
+            }
+        }
+
+        return count;
+    }
+
 
     @Override
     public String toString() {
